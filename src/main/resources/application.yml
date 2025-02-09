@@ -26,6 +26,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   batch:
     job:
+      name: ${job.name:NONE}
       enabled: true
     jdbc:
       initialize-schema: always
