@@ -21,22 +21,47 @@ import org.springframework.transaction.PlatformTransactionManager;
 @RequiredArgsConstructor
 public class JobConfiguration {
 
-//    @Bean
-//    public Job batchJob1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
-//        return new JobBuilder("batchJob1", jobRepository)
-//                .incrementer(new RunIdIncrementer())
-//                .start(step1(jobRepository, transactionManager))
-//                .next(step2(jobRepository, transactionManager))
-//                .build();
-//    }
-
     @Bean
-    public Job batchJob2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
-        return new JobBuilder("batchJob2", jobRepository)
-                .start(flow(jobRepository, transactionManager))
-                .next(step5(jobRepository, transactionManager))
+    public Job job(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new JobBuilder("job", jobRepository)
+                .incrementer(new RunIdIncrementer())
+                .start(flow1(jobRepository, transactionManager))
+                .on("COMPLETED").to(flow2(jobRepository, transactionManager))
+                .from(flow1(jobRepository, transactionManager))
+                .on("FAILED").to(flow3(jobRepository, transactionManager))
                 .end()
                 .build();
+    }
+
+    @Bean
+    public Flow flow1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("flow1");
+        flowBuilder.start(step1(jobRepository, transactionManager))
+                .next(step2(jobRepository, transactionManager))
+                .end();
+
+        return flowBuilder.build();
+    }
+
+    @Bean
+    public Flow flow2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("flow2");
+        flowBuilder.start(flow3(jobRepository, transactionManager))
+                .next(step5(jobRepository, transactionManager))
+                .next(step6(jobRepository, transactionManager))
+                .end();
+
+        return flowBuilder.build();
+    }
+
+    @Bean
+    public Flow flow3(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("flow3");
+        flowBuilder.start(step3(jobRepository, transactionManager))
+                .next(step4(jobRepository, transactionManager))
+                .end();
+
+        return flowBuilder.build();
     }
 
     @Bean
@@ -45,7 +70,6 @@ public class JobConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        System.out.println("step1");
                         return RepeatStatus.FINISHED;
                     }
                 }, transactionManager)
@@ -58,21 +82,11 @@ public class JobConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        System.out.println("step2");
-                        return RepeatStatus.FINISHED;
+                        throw new RuntimeException("abc");
+//                        return RepeatStatus.FINISHED;
                     }
                 }, transactionManager)
                 .build();
-    }
-
-    @Bean
-    public Flow flow(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
-        FlowBuilder<Flow> flowBuilder = new FlowBuilder<Flow>("flow");
-        flowBuilder.start(step3(jobRepository, transactionManager))
-                .next(step4(jobRepository, transactionManager))
-                .end();
-
-        return flowBuilder.build();
     }
 
     @Bean
@@ -81,7 +95,6 @@ public class JobConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        System.out.println("step3");
                         return RepeatStatus.FINISHED;
                     }
                 }, transactionManager)
@@ -94,7 +107,6 @@ public class JobConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        System.out.println("step4");
                         return RepeatStatus.FINISHED;
                     }
                 }, transactionManager)
@@ -107,10 +119,44 @@ public class JobConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        System.out.println("step5");
                         return RepeatStatus.FINISHED;
                     }
                 }, transactionManager)
                 .build();
     }
+
+    @Bean
+    public Step step6(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("step6", jobRepository)
+                .tasklet(new Tasklet() {
+                    @Override
+                    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+                        return RepeatStatus.FINISHED;
+                    }
+                }, transactionManager)
+                .build();
+    }
+//    @Bean
+//    public Step step2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+//        return new StepBuilder("step2", jobRepository).<String, String>chunk(3, transactionManager)
+//                .reader(new ItemReader<String>() {
+//                    @Override
+//                    public String read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
+//                        return "";
+//                    }
+//                })
+//                .processor(new ItemProcessor<String, String>() {
+//                    @Override
+//                    public String process(String item) throws Exception {
+//                        return "";
+//                    }
+//                })
+//                .writer(new ItemStreamWriter<String>() {
+//                    @Override
+//                    public void write(Chunk<? extends String> chunk) throws Exception {
+//
+//                    }
+//                })
+//                .build();
+//    }
 }
